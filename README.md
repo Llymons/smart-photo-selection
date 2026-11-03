@@ -1,6 +1,6 @@
 # 智能选片 Smart Photo Selection
 
-> 机器视觉课程大作业 · 期中设计报告与可运行原型
+> 机器视觉课程大作业 · 智能选片原型
 >
 > 同一场景拍了一组照片，自动选出最值得保留的一张，再给出一个更合适的取景框。
 
@@ -88,26 +88,10 @@ smart-photo-selection/
 │   ├── demo.py            # 合成演示组照生成
 │   └── cli.py             # 命令行入口
 ├── tests/test_smoke.py    # 候选、排序、端到端演示测试
-├── scripts/
-│   ├── make_figures.py    # 生成报告图表
-│   └── build_report.py    # 从 Markdown 生成 Word 版报告
-├── docs/
-│   ├── design-report.md   # 设计报告源文件
-│   ├── 王颖超202393005.pdf
-│   └── figures/           # 报告插图
 ├── examples/demo_series/  # 合成演示组照
 ├── data/                  # 数据放置说明（数据不入库）
 └── outputs/               # 运行输出（不入库）
 ```
-
-## 设计报告
-
-- [Markdown 源文件](docs/design-report.md)
-- [PDF 版](docs/王颖超202393005.pdf)
-
-Word 版不随仓库提供，需要的话可以用 `scripts/build_report.py` 从 Markdown 自己生成（先装开发依赖 `pip install -e ".[dev]"`）。
-
-报告里写了问题定义、五条技术路线的调研（图像美学评价、图像编辑与自动构图、图像偏好学习、排序学习、多模态大模型）、系统方案、数据采集和标注计划，以及实验设计和进度安排。
 
 ## 当前状态
 
@@ -116,7 +100,7 @@ Word 版不随仓库提供，需要的话可以用 `scripts/build_report.py` 从
 - [x] 可运行的候选生成、评分、排序流水线
 - [x] 组内归一化与 Bradley–Terry 排序器接口
 - [x] VLM 评审接口与结构化提示词
-- [x] 合成演示、单元测试、设计报告
+- [x] 合成演示与单元测试
 - [ ] 接入 NIMA / MUSIQ / CLIP-Aesthetic 预训练模型
 - [ ] 在 Photo Triage / 自采组照上训练与评测
 - [ ] VLM 成对复核与校准
@@ -124,11 +108,11 @@ Word 版不随仓库提供，需要的话可以用 `scripts/build_report.py` 从
 
 ## 数据说明
 
-原型不附带受限数据。完整的数据与实验计划见报告第 4 章，本地数据怎么放见 [data/README.md](data/README.md)。演示图像由 `src/sps/demo.py` 程序合成，可以随意使用。
+原型不附带受限数据。本地数据怎么放见 [data/README.md](data/README.md)。演示图像由 `src/sps/demo.py` 程序合成，可以随意使用。
 
 ## 团队
 
-王颖超（202393005），个人独立完成。工作包划分见报告第 5 章。
+王颖超（202393005），个人独立完成。
 
 ## 致谢与参考
 
@@ -136,8 +120,6 @@ Word 版不随仓库提供，需要的话可以用 `scripts/build_report.py` 从
 
 > Huiwen Chang, Fisher Yu, Jue Wang, Douglas Ashley, Adam Finkelstein. *Automatic Triage for a Photo Series*. ACM Transactions on Graphics (Proc. SIGGRAPH), 2016.
 
-完整参考文献见[设计报告](docs/design-report.md#参考文献)。
-
 ## License
 
-[MIT](LICENSE)。演示图像为程序合成；报告中引用的数据集和模型遵循其原始许可。
+[MIT](LICENSE)。演示图像为程序合成；项目中引用的数据集和模型遵循其原始许可。
