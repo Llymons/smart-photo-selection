@@ -1,8 +1,8 @@
 # 智能选片 Smart Photo Selection
 
-> 机器视觉课程大作业 · 期中初步设计报告与原型骨架
+> 机器视觉课程大作业 · 期中设计报告与可运行原型
 >
-> 给定同一场景拍摄的一组照片，自动选出最值得保留的一张，并给出更优的取景框。
+> 同一场景拍了一组照片，自动选出最值得保留的一张，再给出一个更合适的取景框。
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.8%2B-5C3EE8?logo=opencv&logoColor=white)](https://opencv.org/)
@@ -10,12 +10,12 @@
 
 ## 项目简介
 
-手机连拍和“多拍几张再挑”的习惯让相册里充满近冗余照片。人工选片需要比较清晰度、曝光、构图、表情与瞬间，耗时且主观。本项目把“智能选片”定义为：
+出去拍照时，同一场景常常会连拍好几张，回来再一张张挑，既花时间，也很看当时的心情。这个项目想做的就是把这件小事自动化，具体分两部分：
 
-- **单图取景优化**：在一张照片内寻找更符合审美的裁剪框；
-- **组内相对排序**：在同一场景的 N 张照片中选出最值得保留的一张。
+- **单张照片的取景**：在一张照片里找一个更顺眼的裁剪框；
+- **一组照片的排序**：同一场景的 N 张照片中，选出最值得保留的那一张。
 
-系统采用“候选框生成 → 多线索评价 → 组内排序 → VLM 复核”的分层方案：多尺度/多比例网格与三分法主体锚定生成候选，技术质量、美学、构图与语义四类线索打分，组内归一化后以加权融合或 Bradley–Terry 成对排序模型完成选择，多模态大模型只复核少量高分候选。
+做法上分四步：先生成候选框，再给每个候选打分，然后在组内排序，最后按需让多模态大模型复核。候选框来自多种画幅、多个尺度和三分法锚定；打分综合考虑技术质量、美学、构图和语义；组内归一化之后，用加权融合或 Bradley–Terry 成对排序模型做选择。VLM 只用来复核少量高分候选，控制成本，也避免把整个流程拖慢。
 
 ## 方法概览
 
@@ -26,38 +26,42 @@
          IoU 去重           VLM 语义        VLM 仲裁
 ```
 
-| 模块 | 实现 |
+| 模块 | 做法 |
 |---|---|
-| 候选生成 | 4 种画幅比例 × 4 个尺度 × 网格与三分法锚定，贪心 NMS，每图 ≤ 80 个候选 |
-| 技术质量 | 清晰度、曝光/截断、对比度、色彩丰富度、噪声 |
-| 美学 | 可插拔 `AestheticScorer`；原型提供无依赖的启发式评分 |
-| 构图 | 显著性质量占比、三分法对齐、平衡、主体尺度、边界切割、人脸贴边惩罚 |
-| 语义 | 可插拔 `VLMRater`；默认中性评分，支持接入本地/云端 VLM |
-| 排序 | 组内百分位归一化 + 加权融合；提供 Bradley–Terry 成对排序器 |
+| 候选生成 | 4 种画幅比例 × 4 个尺度，配合网格和三分法锚定；贪心 NMS 去重，每张图最多 80 个候选 |
+| 技术质量 | 清晰度、曝光和截断、对比度、色彩丰富度、噪声 |
+| 美学 | 提供可插拔的 `AestheticScorer`，原型里是一个不依赖额外模型和权重的启发式评分 |
+| 构图 | 显著性占比、三分法对齐、画面平衡、主体尺度、边界切割、人脸贴边惩罚 |
+| 语义 | 提供可插拔的 `VLMRater`，默认给中性分，也可以接本地或云端 VLM |
+| 排序 | 组内百分位归一化后加权融合，另外提供 Bradley–Terry 成对排序器 |
 | 评测 | 候选召回、Top-1 一致率、成对准确率、NDCG@k、Kendall τ |
 
 ## 快速开始
 
-```bash
-# 1. 创建虚拟环境（可选）
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# Linux/macOS: source .venv/bin/activate
+需要 Python 3.9 以上，依赖只有 numpy 和 opencv-python，`pip install -e .` 会一并装好。
 
-# 2. 安装
+```bash
+# 可选：创建虚拟环境
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# Linux/macOS
+source .venv/bin/activate
+
+# 安装
 pip install -e .
 
-# 3. 运行合成演示（无需下载数据）
+# 运行合成演示（不需要额外下载数据）
 python -m sps.cli demo --out outputs/demo
 
-# 4. 对真实组照目录选片
+# 对真实组照目录选片
 python -m sps.cli select --input path/to/series --out outputs/run
 
-# 5. 运行单元测试
+# 单元测试
 python -m unittest discover -s tests -v
 ```
 
-也可以不安装，直接用 `PYTHONPATH=src python -m sps.cli demo`。
+不想安装也可以，直接用 `PYTHONPATH=src python -m sps.cli demo`。
 
 ### 输出文件
 
@@ -73,21 +77,23 @@ python -m unittest discover -s tests -v
 ```
 smart-photo-selection/
 ├── src/sps/
+│   ├── __init__.py
+│   ├── types.py           # 数据结构
+│   ├── image_ops.py       # 图像读取与基础操作
 │   ├── candidates.py      # 候选取景框生成、去重、可视化
 │   ├── scoring.py         # 技术质量、美学、构图评分与融合
-│   ├── pipeline.py        # 单图 / 组照推理流程
 │   ├── ranking.py         # 组内归一化与 Bradley–Terry 排序器
+│   ├── pipeline.py        # 单图 / 组照推理流程
 │   ├── vlm.py             # VLM 评审接口、量表与提示词
 │   ├── demo.py            # 合成演示组照生成
 │   └── cli.py             # 命令行入口
 ├── tests/test_smoke.py    # 候选、排序、端到端演示测试
 ├── scripts/
-│   ├── make_figures.py    # 报告图表生成
-│   └── build_report.py    # Markdown → Word 报告
+│   ├── make_figures.py    # 生成报告图表
+│   └── build_report.py    # 从 Markdown 生成 Word 版报告
 ├── docs/
-│   ├── design-report.md   # 设计报告（源文件）
-│   ├── 智能选片设计报告_期中.docx
-│   ├── 智能选片设计报告_期中.pdf
+│   ├── design-report.md   # 设计报告源文件
+│   ├── 王颖超202393005.pdf
 │   └── figures/           # 报告插图
 ├── examples/demo_series/  # 合成演示组照
 ├── data/                  # 数据放置说明（数据不入库）
@@ -97,10 +103,11 @@ smart-photo-selection/
 ## 设计报告
 
 - [Markdown 源文件](docs/design-report.md)
-- [Word 版](docs/智能选片设计报告_期中.docx)
-- [PDF 版](docs/智能选片设计报告_期中.pdf)
+- [PDF 版](docs/王颖超202393005.pdf)
 
-报告包含：问题理解与任务定义、五条技术路线调研（图像美学评价、图像编辑/自动构图、图像偏好学习、排序学习、多模态大模型）、候选框生成/评价/选择的系统方案、数据采集与人工标注计划、实验设计与进度安排。
+Word 版不随仓库提供，需要的话可以用 `scripts/build_report.py` 从 Markdown 自己生成（先装开发依赖 `pip install -e ".[dev]"`）。
+
+报告里写了问题定义、五条技术路线的调研（图像美学评价、图像编辑与自动构图、图像偏好学习、排序学习、多模态大模型）、系统方案、数据采集和标注计划，以及实验设计和进度安排。
 
 ## 当前状态
 
@@ -117,7 +124,7 @@ smart-photo-selection/
 
 ## 数据说明
 
-原型不附带受限数据。完整数据与实验计划见报告第 4 章；本地数据放置方式见 [data/README.md](data/README.md)。演示图像由 `src/sps/demo.py` 程序合成，可自由使用。
+原型不附带受限数据。完整的数据与实验计划见报告第 4 章，本地数据怎么放见 [data/README.md](data/README.md)。演示图像由 `src/sps/demo.py` 程序合成，可以随意使用。
 
 ## 团队
 
@@ -125,12 +132,12 @@ smart-photo-selection/
 
 ## 致谢与参考
 
-本项目的选题与数据设定参考：
+本项目的选题和数据设定参考：
 
 > Huiwen Chang, Fisher Yu, Jue Wang, Douglas Ashley, Adam Finkelstein. *Automatic Triage for a Photo Series*. ACM Transactions on Graphics (Proc. SIGGRAPH), 2016.
 
-完整参考文献见 [设计报告](docs/design-report.md#参考文献)。
+完整参考文献见[设计报告](docs/design-report.md#参考文献)。
 
 ## License
 
-[MIT](LICENSE)。演示图像为程序合成；报告中引用的数据集与模型遵循其原始许可。
+[MIT](LICENSE)。演示图像为程序合成；报告中引用的数据集和模型遵循其原始许可。
